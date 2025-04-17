@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var version bool
@@ -13,20 +15,19 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "minidocker-cli",
-	Short: "minidocker-cli is a container CLI demo",
+	Use:   "minidocker",
+	Short: "minidocker-runtime is a container runtime demo",
 	Run: func(cmd *cobra.Command, args []string) {
 		if version {
-			fmt.Println("minidocker-cli version 0.0.0")
+			fmt.Println("minidocker-runtime version 0.0.0")
 			return
 		}
-		fmt.Println("run hugo...")
 	},
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		logrus.Error("failed to exec command: ", err.Error())
 		os.Exit(1)
 	}
 }

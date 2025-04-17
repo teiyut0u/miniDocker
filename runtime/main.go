@@ -1,3 +1,7 @@
 package main
 
-func main() {}
+import "miniDocker/runtime/cmd"
+
+func main() {
+	cmd.Execute()
+}
