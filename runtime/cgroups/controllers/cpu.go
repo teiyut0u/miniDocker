@@ -6,7 +6,3 @@ type CPU struct {
 	WeightNice string
 	Max        string
 }
-
-// func NewCPU() *CPU {
-// 	return cgroups.NewT[CPU]("cpu")
-// }

@@ -7,22 +7,14 @@ import (
 	"math/rand"
 	"os"
 	"os/user"
-	// "reflect"
-	"regexp"
 	"strconv"
-	// "strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-// type CgroupsField interface {
-// 	Value() (string, error)
-// 	SetValue(value string) error
-// 	Remove() error
-// }
-
 var CgroupsRoot string
+var ContainerId string
 
 func YieldContainerId() string {
 	// 组合输入数据(时间戳 + 随机盐)
@@ -47,6 +39,7 @@ func CreateCgroupsRoot(containerId string) (string, error) {
 		return "", err
 	}
 	CgroupsRoot = rootDir
+	ContainerId = containerId
 	return rootDir, nil
 }
 
@@ -66,28 +59,3 @@ func AddProcess(pid int) error {
 	}
 	return nil
 }
-
-func SplitWords(x string) string {
-	re := regexp.MustCompile(`([a-z])([A-Z])`)
-	return re.ReplaceAllString(x, "${1}.${2}")
-}
-
-// func GetFieldName(field string) string {
-// 	fieldVal := reflect.TypeOf(field)
-// 	return fieldType.Name
-// }
-
-// func NewTName[T any](name string) *T {
-// 	var res T
-//
-// 	resVal := reflect.ValueOf(&res).Elem()
-// 	resType := resVal.Type()
-// 	for i := range resVal.NumField() {
-// 		fieldVal := resVal.Field(i)
-// 		fieldType := resType.Field(i)
-// 		value := fmt.Sprintf("%s.%s", name, strings.ToLower(SplitWords(fieldType.Name)))
-// 		fieldVal.SetString(value)
-// 	}
-//
-// 	return &res
-// }

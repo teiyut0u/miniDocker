@@ -4,6 +4,7 @@ import (
 	"miniDocker/runtime/cgroups"
 	"miniDocker/runtime/cgroups/controllers"
 	"miniDocker/runtime/namespace"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -29,7 +30,8 @@ var childCmd = &cobra.Command{
 	Use:   "child [flags] [args...]",
 	Short: "Fork child process as init process in a container",
 	Run: func(cmd *cobra.Command, args []string) {
-		command := namespace.YieldInitProcess(&childCmdConfig, args)
+		command, writeInitPipe := namespace.YieldInitProcess(&childCmdConfig)
+
 		containerId := cgroups.YieldContainerId()
 		cgroupsRoot, err := cgroups.CreateCgroupsRoot(containerId)
 		if err != nil {
@@ -42,6 +44,11 @@ var childCmd = &cobra.Command{
 			logrus.Error("failed to launch child process: ", err.Error())
 		}
 		cgroups.AddProcess(command.Process.Pid)
+		writeInitPipe.WriteString(strings.Join(args, ":"))
+		if err := writeInitPipe.Close(); err != nil {
+			logrus.Error("failed to close Init Pipe: ", err.Error())
+		}
+
 		command.Wait()
 	},
 }

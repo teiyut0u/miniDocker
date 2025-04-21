@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -53,4 +54,9 @@ func SetField[T any](prefixName string, controllers *T) error {
 		}
 	}
 	return nil
+}
+
+func SplitWords(x string) string {
+	re := regexp.MustCompile(`([a-z])([A-Z])`)
+	return re.ReplaceAllString(x, "${1}.${2}")
 }
