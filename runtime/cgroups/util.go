@@ -16,6 +16,11 @@ import (
 var CgroupsRoot string
 var ContainerId string
 
+func getCgroupDir() string {
+	currentUser, _ := user.Current()
+	return fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice", currentUser.Uid, currentUser.Uid)
+}
+
 func YieldContainerId() string {
 	// 组合输入数据(时间戳 + 随机盐)
 	data := fmt.Sprintf("%d-%d", time.Now().UnixNano(), rand.Intn(1000))
@@ -27,16 +32,10 @@ func YieldContainerId() string {
 
 // 创建cgroup，如果成功的话会设置CgroupsRoot
 func CreateCgroupsRoot(containerId string) (string, error) {
-	currentUser, err := user.Current()
-	if err != nil {
-		logrus.Error("failed to get current user info: ", err)
-		return "", err
-	}
-	rootDir := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/minidocker-%s", currentUser.Uid, currentUser.Uid, containerId)
+	rootDir := fmt.Sprintf("%s/minidocker-%s", getCgroupDir(), containerId)
 	if err := os.MkdirAll(rootDir, 0755); err != nil {
 		CgroupsRoot = ""
-		logrus.Error("failed to create cgroups: ", err)
-		return "", err
+		return "", fmt.Errorf("Failed to create cgroups: %s", err.Error())
 	}
 	CgroupsRoot = rootDir
 	ContainerId = containerId

@@ -5,6 +5,7 @@ import (
 	"miniDocker/runtime/namespace"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -18,7 +19,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func getArgsFromPipe(pipe *os.File) ([]string, error) {
+func getArgvFromPipe(pipe *os.File) ([]string, error) {
 	args, err := io.ReadAll(pipe)
 	if err != nil {
 		return nil, err
@@ -31,22 +32,26 @@ var initCmd = &cobra.Command{
 	Short: "Init namespace in a container",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 获得用来传递参数的pipe，解析参数
-		initPipe := os.NewFile(uintptr(3), "argsPipe")
-		args, err := getArgsFromPipe(initPipe)
+		fd_n, err := strconv.Atoi(os.Getenv("_INIT_PIPE"))
 		if err != nil {
-			logrus.Error("init process failed to get args through the Init Pipe: ", err.Error())
+			logrus.Error("failed to get the Init Pipe: ", err.Error())
+		}
+		initPipe := os.NewFile(uintptr(fd_n), "Init Pipe")
+		argv, err := getArgvFromPipe(initPipe)
+		if err != nil {
+			logrus.Error("init process failed to get argv through the Init Pipe: ", err.Error())
 			return
 		}
 		// 查找要执行的命令
-		commandPath, err := exec.LookPath(args[0])
+		commandPath, err := exec.LookPath(argv[0])
 		if err != nil {
 			logrus.Error("failed to find the start command: ", err.Error())
 			return
 		} else {
-			args[0] = commandPath
+			argv[0] = commandPath
 		}
 		// 运行init process
-		if err := namespace.RunInitProcess(args[0], args); err != nil {
+		if err := namespace.RunInitProcess(argv[0], argv); err != nil {
 			logrus.Error("failed to init process: ", err.Error())
 		}
 	},

@@ -6,16 +6,19 @@ import (
 	"miniDocker/runtime/namespace"
 	"strings"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var childCmdConfig namespace.InitConfig
 var memory controllers.Memory
+var containerSpec specs.Spec
 
 func init() {
 	childCmd.PersistentFlags().BoolVarP(&childCmdConfig.Interactive, "interactive", "i", false, "Keep STDIN and STDOUT open")
 	childCmd.PersistentFlags().StringVarP(&memory.Max, "memory", "m", "", "Memory limit in bytes")
+	// childCmd.PersistentFlags().StringVarP(&(containerSpec.Root.Path), "rootfs", "", "", "Root fs directory")
 	// --cpuset-cpus="0,1" cpuset.cpus
 	// --cpus cpu.max
 	rootCmd.AddCommand(childCmd)
@@ -35,6 +38,7 @@ var childCmd = &cobra.Command{
 		containerId := cgroups.YieldContainerId()
 		cgroupsRoot, err := cgroups.CreateCgroupsRoot(containerId)
 		if err != nil {
+			logrus.Error("failed to create cgroups: ", err.Error())
 			return
 		}
 		defer cgroups.RemoveCgroupsRoot(cgroupsRoot)

@@ -1,11 +1,17 @@
 package namespace
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	STDIO_FD_COUNT = 3
 )
 
 type InitConfig struct {
@@ -14,11 +20,13 @@ type InitConfig struct {
 
 func YieldInitProcess(config *InitConfig) (*exec.Cmd, *os.File) {
 	cmd := exec.Command("/proc/self/exe", "init")
+
 	readInitPipe, writeInitPipe, err := os.Pipe()
 	if err != nil {
 		return nil, nil
 	}
-	cmd.ExtraFiles = []*os.File{readInitPipe}
+	cmd.ExtraFiles = append(cmd.ExtraFiles, readInitPipe)
+	cmd.Env = append(cmd.Env, "_INIT_PIPE="+strconv.Itoa(STDIO_FD_COUNT+len(cmd.ExtraFiles)-1))
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS | syscall.CLONE_NEWNET | syscall.CLONE_NEWIPC,
@@ -39,36 +47,17 @@ func YieldInitProcess(config *InitConfig) (*exec.Cmd, *os.File) {
 	return cmd, writeInitPipe
 }
 
-func mount() error {
-	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
-	if err := syscall.Mount("proc", "/proc", "proc", uintptr(defaultMountFlags), ""); err != nil {
-		logrus.Error("failed to mount /proc: ", err.Error())
-		return err
-	} else {
-		logrus.Info("mount /proc sucessfully")
-		return nil
-	}
-}
-
-// func uts() error {
-// 	logrus.Info("debug ", cgroups.ContainerId)
-// 	return syscall.Sethostname([]byte(cgroups.ContainerId))
-// }
-
 // 这里，init进程需要初始化namespace里的环境
 func RunInitProcess(command string, argv []string) error {
 
 	if err := mount(); err != nil {
 		return err
+	} else {
+		logrus.Info("mount sucessfully")
 	}
 
-	// if err := uts(); err != nil {
-	// 	logrus.Error("failed to set UTS name: ", err.Error())
-	// }
-
 	if err := syscall.Exec(command, argv, os.Environ()); err != nil {
-		logrus.Error("failed to exec command: ", err.Error())
-		return err
+		return fmt.Errorf("Failed to exec command: %s", err.Error())
 	}
 
 	return nil
