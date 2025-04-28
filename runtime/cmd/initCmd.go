@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"io"
+	"encoding/gob"
 	"miniDocker/runtime/namespace"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +19,13 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func getArgvFromPipe(pipe *os.File) ([]string, error) {
-	args, err := io.ReadAll(pipe)
-	if err != nil {
+func getSpecFromPipe(pipe *os.File) (*specs.Spec, error) {
+	decoder := gob.NewDecoder(pipe)
+	var res specs.Spec
+	if err := decoder.Decode(&res); err != nil {
 		return nil, err
 	}
-	return strings.Split(string(args), ":"), nil
+	return &res, nil
 }
 
 var initCmd = &cobra.Command{
@@ -37,21 +38,21 @@ var initCmd = &cobra.Command{
 			logrus.Error("failed to get the Init Pipe: ", err.Error())
 		}
 		initPipe := os.NewFile(uintptr(fd_n), "Init Pipe")
-		argv, err := getArgvFromPipe(initPipe)
+		specPtr, err := getSpecFromPipe(initPipe)
 		if err != nil {
 			logrus.Error("init process failed to get argv through the Init Pipe: ", err.Error())
 			return
 		}
 		// 查找要执行的命令
-		commandPath, err := exec.LookPath(argv[0])
+		commandPath, err := exec.LookPath(specPtr.Process.Args[0])
 		if err != nil {
 			logrus.Error("failed to find the start command: ", err.Error())
 			return
 		} else {
-			argv[0] = commandPath
+			specPtr.Process.Args[0] = commandPath
 		}
 		// 运行init process
-		if err := namespace.RunInitProcess(argv[0], argv); err != nil {
+		if err := namespace.RunInitProcess(specPtr); err != nil {
 			logrus.Error("failed to init process: ", err.Error())
 		}
 	},

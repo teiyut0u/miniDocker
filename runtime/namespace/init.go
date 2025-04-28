@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,6 +16,7 @@ const (
 )
 
 type InitConfig struct {
+	ContainerId string
 	Interactive bool
 }
 
@@ -48,15 +50,15 @@ func YieldInitProcess(config *InitConfig) (*exec.Cmd, *os.File) {
 }
 
 // 这里，init进程需要初始化namespace里的环境
-func RunInitProcess(command string, argv []string) error {
+func RunInitProcess(specPtr *specs.Spec) error {
 
-	if err := mount(); err != nil {
+	if err := mount(specPtr); err != nil {
 		return err
 	} else {
 		logrus.Info("mount sucessfully")
 	}
 
-	if err := syscall.Exec(command, argv, os.Environ()); err != nil {
+	if err := syscall.Exec(specPtr.Process.Args[0], specPtr.Process.Args, os.Environ()); err != nil {
 		return fmt.Errorf("Failed to exec command: %s", err.Error())
 	}
 

@@ -2,7 +2,10 @@ package namespace
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func mountProc(src, dst string, options int) error {
@@ -22,7 +25,7 @@ func mountTmpfs(src, dst string, options int) error {
 }
 
 func pivotRootfs(rootfs string) error {
-	// 把roofs bind mount到自己，这样它就是一个挂载点了
+	// 把roofs bind mount到自己，这样它就能保证是一个挂载点了
 	if err := syscall.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC|syscall.MS_PRIVATE, ""); err != nil {
 		return fmt.Errorf("Failed to mount rootfs to itself: %v", err)
 	}
@@ -67,18 +70,27 @@ func pivotRootfs(rootfs string) error {
 	return nil
 }
 
-func mount() error {
-	rootfs, err := syscall.Getwd()
-	if err != nil {
-		return fmt.Errorf("Failed to get work space: %v", err)
-	}
-
-	if err := mountProc("proc", rootfs+"/proc", syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV); err != nil {
-		return err
-	}
-
-	if err := mountTmpfs("tmpfs", rootfs+"/dev", syscall.MS_NOSUID|syscall.MS_STRICTATIME); err != nil {
-		return err
+func mount(specPtr *specs.Spec) error {
+	rootfs := specPtr.Root.Path
+	//挂载mounts
+	for _, item := range specPtr.Mounts {
+		options := 0
+		data := []string{}
+		for _, option := range item.Options {
+			flag, ok := MountFlags[option]
+			if !ok {
+				data = append(data, option)
+				continue
+			}
+			if flag.clear {
+				options &= ^flag.flag
+			} else {
+				options |= flag.flag
+			}
+		}
+		if err := syscall.Mount(item.Source, rootfs+item.Destination, item.Type, uintptr(options), strings.Join(data, ",")); err != nil { //! 我不确定这个data用的对不对
+			return fmt.Errorf("Failed to mount %s to %s as %s: %v", item.Source, item.Destination, item.Type, err)
+		}
 	}
 
 	if err := pivotRootfs(rootfs); err != nil {

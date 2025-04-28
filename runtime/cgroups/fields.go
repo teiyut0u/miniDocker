@@ -11,7 +11,7 @@ import (
 )
 
 func Value(fieldName string) (string, error) {
-	path := fmt.Sprintf("%s/%s", CgroupsRoot, fieldName)
+	path := fmt.Sprintf("%s/%s", CgroupsDir, fieldName)
 	if res, err := os.ReadFile(path); err != nil {
 		logrus.Errorf("failed to read value of %s: %s", fieldName, err.Error())
 		return "", err
@@ -21,7 +21,7 @@ func Value(fieldName string) (string, error) {
 }
 
 func SetValue(fieldName, value string) error {
-	path := fmt.Sprintf("%s/%s", CgroupsRoot, fieldName)
+	path := fmt.Sprintf("%s/%s", CgroupsDir, fieldName)
 	if err := os.WriteFile(path, []byte(value), 0644); err != nil {
 		logrus.Errorf("failed to set %s value %s: %s\n", fieldName, value, err.Error())
 		return err
@@ -30,7 +30,7 @@ func SetValue(fieldName, value string) error {
 }
 
 func Remove(fieldName string) error {
-	path := fmt.Sprintf("%s/%s", CgroupsRoot, fieldName)
+	path := fmt.Sprintf("%s/%s", CgroupsDir, fieldName)
 	if err := os.Remove(path); err != nil {
 		logrus.Errorf("failed to remove %s: %s\n", fieldName, err.Error())
 		return err
