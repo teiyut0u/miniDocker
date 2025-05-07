@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// var test string
+
 func init() {
 	childCmd.PersistentFlags().BoolP("interactive", "i", false, "Keep STDIN and STDOUT open")
 	viper.BindPFlag("interactive", childCmd.PersistentFlags().Lookup("interactive"))
@@ -21,8 +23,7 @@ func init() {
 	childCmd.PersistentFlags().Int64P("memory", "m", 0, "Memory limit in bytes")
 	viper.BindPFlag("memory", childCmd.PersistentFlags().Lookup("memory"))
 
-	childCmd.PersistentFlags().StringP("id", "", "", "Container ID")
-	childCmd.MarkFlagRequired("id")
+	childCmd.PersistentFlags().String("id", "", "Container ID (required)")
 	viper.BindPFlag("id", childCmd.PersistentFlags().Lookup("id"))
 	// --cpuset-cpus="0,1" cpuset.cpus
 	// --cpus cpu.max
@@ -105,6 +106,7 @@ func getInitConfig() *namespace.InitConfig {
 	res := namespace.InitConfig{}
 	res.Interactive = viper.GetBool("interactive")
 	res.ContainerId = viper.GetString("id")
+	logrus.Infof("id is %s", res.ContainerId)
 
 	return &res
 }
@@ -112,6 +114,12 @@ func getInitConfig() *namespace.InitConfig {
 var childCmd = &cobra.Command{
 	Use:   "child [flags] [args...]",
 	Short: "Fork child process as init process in a container",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if viper.GetString("id") == "" {
+			return fmt.Errorf("id is reuqired")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// 获取spec
 		spec, err := getInitSpec()
@@ -122,7 +130,7 @@ var childCmd = &cobra.Command{
 		// 获取其他配置
 		childCmdConfig := getInitConfig()
 		// 获取init cmd
-		command, writeInitPipe := namespace.YieldInitProcess(childCmdConfig)
+		command, writeInitPipe := namespace.YieldInitProcess(childCmdConfig, spec)
 		// 获取cgroup的挂载点，逻辑上可能有多个挂载点，先假设第一个是我们要的
 		cgroupsMounts, err := cgroups.GetCgroupsMounts()
 		if len(cgroupsMounts) == 0 || err != nil {

@@ -20,7 +20,7 @@ type InitConfig struct {
 	Interactive bool
 }
 
-func YieldInitProcess(config *InitConfig) (*exec.Cmd, *os.File) {
+func YieldInitProcess(config *InitConfig, spec *specs.Spec) (*exec.Cmd, *os.File) {
 	cmd := exec.Command("/proc/self/exe", "init")
 
 	readInitPipe, writeInitPipe, err := os.Pipe()
